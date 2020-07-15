@@ -1,4 +1,4 @@
-use std::{fs, io, path};
+use std::{env, fs, io, path};
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -13,9 +13,14 @@ struct Cli {
 fn main() -> Result<(), io::Error> {
     let args = Cli::from_args();
     let script = args.script;
-    let start = path::PathBuf::from(".");
-    let root = find_yarn_lock(start)?;
-    let cwd = get_working_dir(root, args.dir);
+    let root = &mut env::current_dir()?;
+
+    find_yarn_lock(root)?;
+
+    let cwd = match args.dir {
+        Some(d) => root.join(d).canonicalize()?,
+        None => env::current_dir()?,
+    };
 
     match script {
         Some(s) => println!("yarn run --cwd={} {}", cwd.display(), s),
@@ -25,31 +30,24 @@ fn main() -> Result<(), io::Error> {
     Ok(())
 }
 
-fn get_working_dir(root: path::PathBuf, dir: Option<path::PathBuf>) -> path::PathBuf {
-    match dir {
-        Some(d) => root.join(d),
-        None => path::PathBuf::from("."),
-    }
-}
-
-fn find_yarn_lock(current: path::PathBuf) -> Result<path::PathBuf, io::Error> {
-    for entry in fs::read_dir(current)? {
+fn find_yarn_lock(current: &mut path::PathBuf) -> Result<(), io::Error> {
+    for entry in fs::read_dir(&mut *current)? {
         let entry = entry?;
         let file_name = entry.file_name();
 
         if file_name == "yarn.lock" {
-            return Ok(current);
+            return Ok(());
         }
     }
 
-    let next = current.join(path::PathBuf::from(".."));
+    current.push("..");
 
-    if next == path::PathBuf::from("/") {
+    if *current == path::PathBuf::from("/") {
         return Err(io::Error::new(
             io::ErrorKind::NotFound,
             "Could not find a yarn.lock",
         ));
     }
 
-    find_yarn_lock(next)
+    find_yarn_lock(current)
 }
