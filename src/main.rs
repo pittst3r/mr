@@ -17,8 +17,8 @@ fn main() -> Result<(), io::Error> {
     let cwd = compute_cwd(dir)?;
 
     match script {
-        Some(s) => println!("yarn run --cwd={} {}", cwd.display(), s),
-        None => println!("cd {}", cwd.display()),
+        Some(s) => print!("yarn run --cwd={} {}", cwd.display(), s),
+        None => print!("cd {}", cwd.display()),
     }
 
     Ok(())
@@ -73,7 +73,7 @@ fn find_root_dir(current: &path::PathBuf) -> io::Result<path::PathBuf> {
         let file_name = entry.file_name();
 
         if file_name == "yarn.lock" {
-            return Ok(current.canonicalize()?);
+            return current.canonicalize();
         }
     }
 
