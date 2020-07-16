@@ -13,12 +13,8 @@ struct Cli {
 fn main() -> Result<(), io::Error> {
     let args = Cli::from_args();
     let script = args.script;
-    let start = env::current_dir()?;
-    let root = find_root_dir(&start)?;
-    let cwd = match args.dir {
-        Some(d) => root.join(d).canonicalize()?,
-        None => env::current_dir()?,
-    };
+    let dir = args.dir.unwrap_or(env::current_dir()?);
+    let cwd = compute_cwd(dir)?;
 
     match script {
         Some(s) => println!("yarn run --cwd={} {}", cwd.display(), s),
@@ -28,7 +24,39 @@ fn main() -> Result<(), io::Error> {
     Ok(())
 }
 
-fn find_root_dir(current: &path::PathBuf) -> Result<path::PathBuf, io::Error> {
+fn compute_cwd(dir: path::PathBuf) -> io::Result<path::PathBuf> {
+    let start = env::current_dir()?;
+    let root = find_root_dir(&start)?;
+
+    if dir == path::PathBuf::from("/") {
+        return Ok(root);
+    }
+
+    package_path(root, start, &dir)?.canonicalize()
+}
+
+fn package_path(
+    root: path::PathBuf,
+    base: path::PathBuf,
+    pattern: &path::PathBuf,
+) -> io::Result<path::PathBuf> {
+    let full_path = base.join(pattern);
+
+    if full_path.exists() {
+        return Ok(full_path);
+    }
+
+    if root == base {
+        return Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            "Could not find given directory within project",
+        ));
+    }
+
+    package_path(root, base.join(path::PathBuf::from("..")), pattern)
+}
+
+fn find_root_dir(current: &path::PathBuf) -> io::Result<path::PathBuf> {
     if current.canonicalize()? == path::PathBuf::from("/") {
         return Err(io::Error::new(
             io::ErrorKind::NotFound,
