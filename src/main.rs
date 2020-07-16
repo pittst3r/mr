@@ -3,8 +3,8 @@ use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
 struct Cli {
-    #[structopt(short, long, parse(from_os_str))]
-    dir: Option<path::PathBuf>,
+    #[structopt(parse(from_os_str))]
+    dir: path::PathBuf,
 
     #[structopt()]
     script: Option<String>,
@@ -13,7 +13,7 @@ struct Cli {
 fn main() -> Result<(), io::Error> {
     let args = Cli::from_args();
     let script = args.script;
-    let dir = args.dir.unwrap_or(env::current_dir()?);
+    let dir = args.dir;
     let cwd = compute_cwd(dir)?;
 
     match script {
