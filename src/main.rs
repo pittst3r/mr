@@ -61,13 +61,6 @@ fn package_path(
 }
 
 fn find_root_dir(current: &path::PathBuf) -> io::Result<path::PathBuf> {
-    if current.canonicalize()? == path::PathBuf::from("/") {
-        return Err(io::Error::new(
-            io::ErrorKind::NotFound,
-            "Could not find a yarn.lock",
-        ));
-    }
-
     for entry in fs::read_dir(current)? {
         let entry = entry?;
         let file_name = entry.file_name();
@@ -78,6 +71,13 @@ fn find_root_dir(current: &path::PathBuf) -> io::Result<path::PathBuf> {
     }
 
     let next = current.join("..");
+
+    if next.canonicalize()? == path::PathBuf::from("/") {
+        return Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            "Could not find a yarn.lock",
+        ));
+    }
 
     find_root_dir(&next)
 }
