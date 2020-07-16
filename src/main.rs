@@ -25,6 +25,10 @@ fn main() -> Result<(), io::Error> {
 }
 
 fn compute_cwd(dir: path::PathBuf) -> io::Result<path::PathBuf> {
+    if dir == path::PathBuf::from("-") {
+        return Ok(dir);
+    }
+
     let start = env::current_dir()?;
     let root = find_root_dir(&start)?;
 
