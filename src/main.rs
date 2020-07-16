@@ -13,10 +13,8 @@ struct Cli {
 fn main() -> Result<(), io::Error> {
     let args = Cli::from_args();
     let script = args.script;
-    let root = &mut env::current_dir()?;
-
-    find_yarn_lock(root)?;
-
+    let start = env::current_dir()?;
+    let root = find_root_dir(&start)?;
     let cwd = match args.dir {
         Some(d) => root.join(d).canonicalize()?,
         None => env::current_dir()?,
@@ -30,24 +28,24 @@ fn main() -> Result<(), io::Error> {
     Ok(())
 }
 
-fn find_yarn_lock(current: &mut path::PathBuf) -> Result<(), io::Error> {
-    for entry in fs::read_dir(&mut *current)? {
-        let entry = entry?;
-        let file_name = entry.file_name();
-
-        if file_name == "yarn.lock" {
-            return Ok(());
-        }
-    }
-
-    current.push("..");
-
-    if *current == path::PathBuf::from("/") {
+fn find_root_dir(current: &path::PathBuf) -> Result<path::PathBuf, io::Error> {
+    if current.canonicalize()? == path::PathBuf::from("/") {
         return Err(io::Error::new(
             io::ErrorKind::NotFound,
             "Could not find a yarn.lock",
         ));
     }
 
-    find_yarn_lock(current)
+    for entry in fs::read_dir(current)? {
+        let entry = entry?;
+        let file_name = entry.file_name();
+
+        if file_name == "yarn.lock" {
+            return Ok(current.canonicalize()?);
+        }
+    }
+
+    let next = current.join("..");
+
+    find_root_dir(&next)
 }
