@@ -1,10 +1,14 @@
+use glob::glob;
 use std::{env, fs, io, path};
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
 struct Cli {
-    #[structopt(parse(from_os_str))]
-    dir: path::PathBuf,
+    #[structopt(short, long, takes_value = false, help = "Lists package paths")]
+    list: bool,
+
+    #[structopt(parse(from_os_str), required_unless = "list")]
+    dir: Option<path::PathBuf>,
 
     #[structopt()]
     script: Option<String>,
@@ -12,8 +16,26 @@ struct Cli {
 
 fn main() -> Result<(), io::Error> {
     let args = Cli::from_args();
+    let list = args.list;
+
+    if list {
+        let mut result = String::new();
+        let root = find_root_dir(&env::current_dir()?)?;
+        let packages = match find_package_directories(&root) {
+            Ok(pkgs) => pkgs,
+            Err(_e) => Vec::new(),
+        };
+
+        for pkg in packages {
+            result.push_str(pkg.to_str().unwrap_or(""));
+            result.push_str("\n");
+        }
+        print!("echo \"{}\"", result);
+        return Ok(());
+    }
+
     let script = args.script;
-    let dir = args.dir;
+    let dir = args.dir.expect("Directory argument is required");
     let cwd = compute_cwd(dir)?;
 
     match script {
@@ -80,4 +102,33 @@ fn find_root_dir(current: &path::PathBuf) -> io::Result<path::PathBuf> {
     }
 
     find_root_dir(&next)
+}
+
+fn find_package_directories(
+    root: &path::PathBuf,
+) -> Result<Vec<path::PathBuf>, Box<dyn std::error::Error>> {
+    let package_json = String::from_utf8(fs::read(root.join("package.json"))?)?;
+    let patterns = &json::parse(&package_json)?["workspaces"]["packages"];
+    let mut workspaces = Vec::new();
+
+    for pattern in patterns.members() {
+        let full_pattern = match pattern.as_str() {
+            Some(p) => root.join(p),
+            None => root.to_path_buf(),
+        };
+        let pattern_str =
+            match full_pattern.to_str() {
+                Some(p) => p,
+                None => return Err(Box::new(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "There may be an invalid unicode character in your workspace package patterns",
+                ))),
+            };
+
+        for dir in glob(pattern_str)? {
+            workspaces.push(dir?);
+        }
+    }
+
+    Ok(workspaces)
 }

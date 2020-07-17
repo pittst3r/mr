@@ -9,4 +9,6 @@ name = "mr-util"
 path = "src/main.rs"
 
 [dependencies]
-structopt = { version = "0.3" }
+glob = "0.3"
+json = "0.12.4"
+structopt = "0.3"
