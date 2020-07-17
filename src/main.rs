@@ -39,13 +39,11 @@ impl Mr {
             return Ok(pattern);
         }
 
-        let start = env::current_dir()?;
-
         if pattern == path::PathBuf::from("/") {
             return Ok(self.root);
         }
 
-        self.package_path(start, pattern)?.canonicalize()
+        self.package_path(pattern)?.canonicalize()
     }
 
     fn list_package_directories(self) -> io::Result<String> {
@@ -63,25 +61,30 @@ impl Mr {
         Ok(result)
     }
 
-    fn package_path(
-        self,
-        base: path::PathBuf,
-        pattern: path::PathBuf,
-    ) -> io::Result<path::PathBuf> {
-        let full_path = base.join(&pattern);
+    fn package_path(self, pattern: path::PathBuf) -> io::Result<path::PathBuf> {
+        let packages = match self.find_package_directories() {
+            Ok(pkgs) => pkgs,
+            Err(_e) => Vec::new(),
+        };
 
-        if full_path.exists() {
-            return Ok(full_path);
+        let mut matches = Vec::new();
+
+        for pkg in packages {
+            let pkg_str = pkg.to_str().unwrap();
+            let pat_str = pattern.to_str().unwrap();
+
+            if pkg_str.ends_with(pat_str) {
+                matches.push(pkg);
+            }
         }
 
-        if self.root == base {
-            return Err(io::Error::new(
+        match matches.first() {
+            Some(m) => Ok(path::PathBuf::from(m)),
+            None => Err(io::Error::new(
                 io::ErrorKind::NotFound,
                 "Could not find given directory within project",
-            ));
+            )),
         }
-
-        self.package_path(base.join(path::PathBuf::from("..")), pattern)
     }
 
     fn find_package_directories(self) -> Result<Vec<path::PathBuf>, Box<dyn std::error::Error>> {
