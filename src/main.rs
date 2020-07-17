@@ -22,6 +22,34 @@ struct Cli {
     script: Option<String>,
 }
 
+struct Mr {
+    root: path::PathBuf,
+    pattern: path::PathBuf,
+}
+
+impl Mr {
+    fn new(pattern: path::PathBuf) -> Mr {
+        let start = env::current_dir().unwrap_or(path::PathBuf::from("."));
+        let root = find_root_dir(&start).unwrap_or(path::PathBuf::from("."));
+
+        Mr { root, pattern }
+    }
+
+    fn cwd(self) -> io::Result<path::PathBuf> {
+        if self.pattern == path::PathBuf::from("-") {
+            return Ok(self.pattern);
+        }
+
+        let start = env::current_dir()?;
+
+        if self.pattern == path::PathBuf::from("/") {
+            return Ok(self.root);
+        }
+
+        package_path(self.root, start, &self.pattern)?.canonicalize()
+    }
+}
+
 fn main() -> Result<(), io::Error> {
     let args = Cli::from_args();
     let list = args.list;
@@ -31,31 +59,15 @@ fn main() -> Result<(), io::Error> {
         return Ok(());
     }
 
-    let script = args.script;
-    let dir = args.dir.expect("Directory argument is required");
-    let cwd = compute_cwd(dir)?;
+    let mr = Mr::new(args.dir.unwrap_or(path::PathBuf::from(".")));
+    let cwd = mr.cwd()?;
 
-    match script {
+    match args.script {
         Some(s) => print!("yarn run --cwd={} {}", cwd.display(), s),
         None => print!("cd {}", cwd.display()),
     }
 
     Ok(())
-}
-
-fn compute_cwd(dir: path::PathBuf) -> io::Result<path::PathBuf> {
-    if dir == path::PathBuf::from("-") {
-        return Ok(dir);
-    }
-
-    let start = env::current_dir()?;
-    let root = find_root_dir(&start)?;
-
-    if dir == path::PathBuf::from("/") {
-        return Ok(root);
-    }
-
-    package_path(root, start, &dir)?.canonicalize()
 }
 
 fn package_path(
