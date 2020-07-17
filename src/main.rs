@@ -3,14 +3,22 @@ use std::{env, fs, io, path};
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
+#[structopt(
+    name = "mr",
+    about = "Easy monorepo context switching and script running."
+)]
 struct Cli {
     #[structopt(short, long, takes_value = false, help = "Lists package paths")]
     list: bool,
 
-    #[structopt(parse(from_os_str), required_unless = "list")]
+    #[structopt(
+        parse(from_os_str),
+        required_unless = "list",
+        help = "Directory to change into"
+    )]
     dir: Option<path::PathBuf>,
 
-    #[structopt()]
+    #[structopt(help = "Yarn script to run")]
     script: Option<String>,
 }
 
