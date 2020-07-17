@@ -27,18 +27,7 @@ fn main() -> Result<(), io::Error> {
     let list = args.list;
 
     if list {
-        let mut result = String::new();
-        let root = find_root_dir(&env::current_dir()?)?;
-        let packages = match find_package_directories(&root) {
-            Ok(pkgs) => pkgs,
-            Err(_e) => Vec::new(),
-        };
-
-        for pkg in packages {
-            result.push_str(pkg.to_str().unwrap_or(""));
-            result.push_str("\n");
-        }
-        print!("echo \"{}\"", result);
+        print!("echo \"{}\"", list_package_directories()?);
         return Ok(());
     }
 
@@ -139,4 +128,20 @@ fn find_package_directories(
     }
 
     Ok(workspaces)
+}
+
+fn list_package_directories() -> io::Result<String> {
+    let mut result = String::new();
+    let root = find_root_dir(&env::current_dir()?)?;
+    let packages = match find_package_directories(&root) {
+        Ok(pkgs) => pkgs,
+        Err(_e) => Vec::new(),
+    };
+
+    for pkg in packages {
+        result.push_str(pkg.to_str().unwrap_or(""));
+        result.push_str("\n");
+    }
+
+    Ok(result)
 }
