@@ -45,7 +45,7 @@ impl Mr {
             return Ok(self.root);
         }
 
-        self.package_path(start, &pattern)?.canonicalize()
+        self.package_path(start, pattern)?.canonicalize()
     }
 
     fn list_package_directories(self) -> io::Result<String> {
@@ -66,9 +66,9 @@ impl Mr {
     fn package_path(
         self,
         base: path::PathBuf,
-        pattern: &path::PathBuf,
+        pattern: path::PathBuf,
     ) -> io::Result<path::PathBuf> {
-        let full_path = base.join(pattern);
+        let full_path = base.join(&pattern);
 
         if full_path.exists() {
             return Ok(full_path);
