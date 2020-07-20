@@ -24,6 +24,7 @@ struct Cli {
 
 struct Mr {
     root: path::PathBuf,
+    base: path::PathBuf,
 }
 
 impl Mr {
@@ -31,16 +32,23 @@ impl Mr {
         let start = env::current_dir().unwrap_or(path::PathBuf::from("."));
         let root = find_root_dir(&start).unwrap_or(path::PathBuf::from("."));
 
-        Mr { root }
+        Mr { root, base: start }
     }
 
     fn cwd(self, pattern: path::PathBuf) -> io::Result<path::PathBuf> {
         if pattern == path::PathBuf::from("-") {
-            return Ok(pattern);
+            return match env::var("OLDPWD") {
+                Ok(prev) => Ok(path::PathBuf::from(prev)),
+                Err(_e) => Ok(env::current_dir().unwrap_or(path::PathBuf::from("."))),
+            };
         }
 
         if pattern == path::PathBuf::from("/") {
             return Ok(self.root);
+        }
+
+        if pattern == path::PathBuf::from(".") {
+            return Ok(self.base);
         }
 
         self.package_path(pattern)?.canonicalize()
@@ -67,18 +75,34 @@ impl Mr {
             Err(_e) => Vec::new(),
         };
 
-        let mut matches = Vec::new();
+        let valid_packages = packages
+            .iter()
+            .filter(|pkg| pkg.to_str().unwrap_or("") != "");
 
-        for pkg in packages {
-            let pkg_str = pkg.to_str().unwrap();
-            let pat_str = pattern.to_str().unwrap();
+        let pat_str = match pattern.to_str() {
+            Some(pat) => pat,
+            None => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "Could not parse given directory pattern",
+                ))
+            }
+        };
+
+        let mut matches = valid_packages.filter(|pkg| {
+            let pkg_str = match pkg.to_str() {
+                Some(p) => p,
+                None => return false,
+            };
 
             if pkg_str.ends_with(pat_str) {
-                matches.push(pkg);
+                return true;
             }
-        }
 
-        match matches.first() {
+            return false;
+        });
+
+        match matches.next() {
             Some(m) => Ok(path::PathBuf::from(m)),
             None => Err(io::Error::new(
                 io::ErrorKind::NotFound,

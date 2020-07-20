@@ -12,7 +12,7 @@ $ mr -l
 ~/code/some-monorepo/packages/pkg-a
 ~/code/some-monorepo/packages/pkg-b
 
-$ mr packages/pkg-a test
+$ mr pkg-a test
 yarn run v1.19.1
 $ jest
 42/42 tests passing
@@ -21,7 +21,7 @@ $ jest
 $ pwd
 ~/code/some-monorepo
 
-$ mr packages/pkg-a
+$ mr pkg-a
 
 $ pwd
 ~/code/some-monorepo/packages/pkg-a
